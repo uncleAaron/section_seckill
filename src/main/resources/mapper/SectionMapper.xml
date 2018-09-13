@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaron.section_seckill.mapper.SectionMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.aaron.section_seckill.entity.Section">
+        <id column="sec_id" property="secId" />
+        <result column="sec_name" property="secName" />
+        <result column="teacher_id" property="teacherId" />
+        <result column="semester" property="semester" />
+        <result column="year" property="year" />
+        <result column="room_no" property="roomNo" />
+        <result column="number" property="number"/>
+    </resultMap>
+    <!-- 选课减少余量，检查能不能继续-1，不能的话拒绝操作 -->
+    <update id="reduceNumber">
+        UPDATE section
+        SET number = number - 1
+        WHERE sec_id = #{secId}
+        AND number > 0
+
+    </update>
+
+</mapper>

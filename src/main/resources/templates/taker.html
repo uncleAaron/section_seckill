@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Dashboard Template for Bootstrap</title>
+    <!-- Bootstrap core CSS -->
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="/static/css/dashboard.css" rel="stylesheet">
+</head>
+
+<body>
+<!-- 这里用了thymeleaf的公共部分引入功能，th:replace="模板名 :: 引入名(被标记了th:fragment的部分，也可以是id)" -->
+<nav class="navbar navbar-dark fixed-top bg-dark flex-md-nowrap p-0 shadow">
+
+    <!-- 注意这里，使用了session.属性名直接取出属性值 -->
+    <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#" th:text="${session.loginUser}">Company name</a>
+
+    <input class="form-control form-control-dark w-100" type="text" placeholder="Search" aria-label="Search">
+    <ul class="navbar-nav px-3">
+        <li class="nav-item text-nowrap">
+            <a class="nav-link" href="#">Sign out</a>
+        </li>
+    </ul>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- 引入侧边栏 -->
+        <!--<div th:replace="~{commons/bar :: #sidebar}"></div>-->
+
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+
+
+            <!--<canvas class="my-4 w-10" id="myChart" width="20" height="20"></canvas>-->
+            <div class="my-5 w-10"> </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>课程名称</th>
+                        <th>教师</th>
+                        <th>季度</th>
+                        <th>教室</th>
+                        <th>选课</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    <tr>
+                        <td>0x0000</td>
+                        <td>null</td>
+                        <td>null</td>
+                        <td></td>
+                        <td><input type="checkbox" name="takes" value=""></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <button type="submit" class="btn btn-sm btn-warning" id="takesButton">选课</button>
+                <form id="deleteUser" method="post">
+                    <input type="hidden" name="_method" value="delete"/>
+                </form>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script src="/static/js/jquery-3.3.1.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+
+<!--<script>-->
+    <!--function getList(page, size) {-->
+        <!--$.ajax({-->
+            <!--type: "get",-->
+            <!--url: "/section/list",-->
+            <!--contentType: "application/json",-->
+            <!---->
+        <!--})-->
+    <!--}-->
+<!--</script>-->
+<script>
+    $(".takesButton").click(function () {
+        var data = [];
+        $("input[name='takes']").each(function() {
+            if ($(this).prop("checked")) {
+                data.push($(this).val());
+            }
+        });
+        var json_data = JSON.stringify(data);
+        $.ajax({
+            type: "post",
+            url: "/section/takes2",
+            contentType: "application/json",
+            data: json_data,
+            dataType: "json",
+            success: function (data) {
+            },
+            error: function () {
+                alert("出错了")
+            }
+        });
+    });
+</script>
+<script>
+    $(".deleteBtn").click(function () {
+        $("#deleteUser").attr("action",$(this).attr("del_uri")).submit();
+        return false;
+    })
+</script>
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<!--<script>window.jQuery || document.write('<script src="/static/js/jquery-3.3.1.slim.min.js"><\/script>')</script>-->
+<script src="/static/js/popper.min.js"></script>
+<script src="/static/js/bootstrap.min.js"></script>
+
+<!-- Icons -->
+<script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
+<!--<script>-->
+    <!--feather.replace()-->
+<!--</script>-->
+
+</body>
+</html>

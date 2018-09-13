@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaron.section_seckill.mapper.TakesMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.aaron.section_seckill.entity.Takes">
+        <id column="sec_id" property="secId" />
+        <result column="student_id" property="studentId" />
+        <result column="score_id" property="scoreId" />
+    </resultMap>
+    <insert id="tryInsert" >
+        INSERT ignore INTO takes(sec_id, student_id, score_id)
+        VALUES (#{secId}, #{studentId}, 0)
+    </insert>
+    <insert id="trySaveTakeStatus">
+        INSERT ignore INTO t_properties(property_name, property_value)
+        VALUES ('takes', #{status})
+    </insert>
+    <update id="updateScoreId">
+        UPDATE takes
+        SET score_id = #{scoreId}
+        WHERE sec_id = #{secId} AND student_id = #{studentId}
+    </update>
+    <update id="setTakeStatus">
+        UPDATE t_properties
+        SET property_value = #{status}
+        WHERE property_name = 'takes'
+    </update>
+    <select id="countTakeBySection" resultType="int">
+        SELECT COUNT(student_id)
+        WHERE sec_id = #{secId}
+    </select>
+    <select id="selectById" resultType="com.aaron.section_seckill.entity.Takes">
+        SELECT *
+        FROM takes
+        WHERE sec_id = #{secId} and student_id = #{studentId}
+    </select>
+    <select id="getTakeStatus" resultType="boolean">
+        SELECT property_value
+        FROM t_properties
+        WHERE property_name = 'takes'
+    </select>
+
+
+</mapper>

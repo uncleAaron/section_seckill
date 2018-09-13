@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aaron.section_seckill.mapper.ScoreMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.aaron.section_seckill.entity.Score">
+        <id column="score_id" property="scoreId" />
+        <result column="score_attend_1" property="scoreAttend1" />
+        <result column="score_attend_2" property="scoreAttend2" />
+        <result column="score_attend_3" property="scoreAttend3" />
+        <result column="score_quiz_1" property="scoreQuiz1" />
+        <result column="score_quiz_2" property="scoreQuiz2" />
+        <result column="score_quiz_3" property="scoreQuiz3" />
+        <result column="score_homework_1" property="scoreHomework1" />
+        <result column="score_homework_2" property="scoreHomework2" />
+        <result column="score_homework_3" property="scoreHomework3" />
+        <result column="score_finalexam" property="scoreFinalexam" />
+    </resultMap>
+    <!-- 主键回填，要使用useGenratedKeys 和设置keyColumn 和 keyProperty -->
+    <insert id="insertEmptyScore" useGeneratedKeys="true" keyColumn="score_id" keyProperty="scoreId">
+        INSERT INTO score (score_attend_1, score_attend_2, score_attend_3, score_quiz_1, score_quiz_2, score_quiz_3, score_homework_1, score_homework_2, score_homework_3, score_finalexam)
+        VALUES (0,0,0,0,0,0,0,0,0,0)
+    </insert>
+
+
+</mapper>
