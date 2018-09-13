@@ -13,7 +13,9 @@ import com.aaron.section_seckill.exception.TakeException;
  */
 public interface TakeService {
 
-    public boolean takeSection(Takes takes) throws TakeException;
+    public boolean takeSectionToDB(Takes takes) throws TakeException;
+
+    public boolean tryTake(String sectionId, String username);
 
     /**
      * 选课结束状态，从mysql获取并使用redis暂存选课状态信息，key为switch，value为true false

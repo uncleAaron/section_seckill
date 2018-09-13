@@ -3,13 +3,15 @@ package com.aaron.section_seckill.service.impl;
 import com.aaron.section_seckill.constant.RedisConstants;
 import com.aaron.section_seckill.constant.enums.StatusEnum;
 import com.aaron.section_seckill.entity.Score;
+import com.aaron.section_seckill.entity.Section;
 import com.aaron.section_seckill.entity.Takes;
 import com.aaron.section_seckill.exception.TakeException;
 import com.aaron.section_seckill.mapper.ScoreMapper;
 import com.aaron.section_seckill.mapper.SectionMapper;
 import com.aaron.section_seckill.mapper.TakesMapper;
-import com.aaron.section_seckill.utils.RedisDao;
 import com.aaron.section_seckill.service.TakeService;
+import com.aaron.section_seckill.utils.MQProvider;
+import com.aaron.section_seckill.utils.RedisDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CachePut;
@@ -17,6 +19,8 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -38,6 +42,8 @@ public class TakeServiceImpl implements TakeService {
     ScoreMapper scoreMapper;
     @Autowired
     RedisDao redisDao;
+    @Autowired
+    MQProvider mqProvider;
 
     private static final String TAKE_STATUS = "'takesStatus'";
 
@@ -51,7 +57,7 @@ public class TakeServiceImpl implements TakeService {
 
     @Override
     @Transactional(rollbackFor = TakeException.class)
-    public boolean takeSection(Takes takes) throws TakeException {
+    public boolean takeSectionToDB(Takes takes) throws TakeException {
         try {
             // 先记录了成功选课行为，后续验证是否选课成功，选课不成功则回滚
             int insertCount = takesMapper.tryInsert(takes.getSecId(), takes.getStudentId());
@@ -82,6 +88,63 @@ public class TakeServiceImpl implements TakeService {
         // 成功的抢课记录到redis的success_list中
         redisDao.ZADD(RedisConstants.SUCCESS_ZSET, takes.toRecord(), 1L);
         return true;
+    }
+
+    /**
+     * 1. 检查redis上是否已存在课程，若不存在，则从数据库读取一条section记录放到redis上(key为课程ID，value为余量，-1处理使用redis的原子-1操作)
+     * 2. 检查该用户是否重复秒杀
+     * 3. 若余量>0，则redis记录 -1 处理，同时将修改记录发送到 MQ 上
+     * 4. 否则即余量<=0，直接拒绝
+     * 超卖解决办法：1. 使用乐观锁，重试到成功为止 2. 使用队列，先往名为课程id的队列push所有的数量的库存，然后依次pop作为减库存，这样解决了原子操作的问题，但是会不会很臃肿？
+     */
+    @Override
+    public boolean tryTake(String sectionId, String username) {
+        // 获取余量
+        Integer lastNumber = (Integer) redisDao.GET(RedisConstants.SECTIONS_LIST, sectionId);
+        if (lastNumber == null) {
+            Section section = sectionMapper.selectById(sectionId);
+            if (section == null) {
+                return false;   // 不存在该课程，返回拒绝
+            } else {
+                redisDao.SET(RedisConstants.SECTIONS_LIST, sectionId, section.getNumber(), 10L, TimeUnit.MINUTES);  // 把课程更新上去
+            }
+        }
+        // 检查用户是否已经秒杀过了
+        long a = redisDao.ZRANK(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username);
+        if (a >= 0) {
+            return false;
+        }
+        // 减余量，必须要大于0才能-1，这就涉及并发，>0检查和-1结合后必须设计成原子操作，在此使用分布式锁
+        boolean dercOK = seckillOnRedis(sectionId);
+        if (!dercOK) {  // 失败
+            return false;
+        } else {
+            redisDao.ZADD(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username, 1L);
+            mqProvider.sendTakeMessage(username, sectionId);    // 发送选课消息到mq
+            return true;
+        }
+    }
+
+    private boolean seckillOnRedis(String sectionId) {
+        long time = System.currentTimeMillis() + 1000 * 10;  //超时时间：10秒，最好设为常量
+        try {
+            // 加锁
+            boolean isLock = redisDao.lock(sectionId, String.valueOf(time));
+            if (!isLock) {
+                throw new RuntimeException("人太多了，换个姿势再试试~");
+            }
+
+            // 查库存
+            Integer redisNumber = (Integer) redisDao.GET(RedisConstants.SECTIONS_LIST, sectionId);
+            if (redisNumber == null || redisNumber <= 0) {  // 没库存
+                return false;
+            }
+            Long result = redisDao.DECR(RedisConstants.SECTIONS_LIST, sectionId);   // -1
+            return true;
+        } finally {
+            //解锁
+            redisDao.unlock(sectionId, String.valueOf(time));
+        }
     }
 
     @CachePut(cacheNames = {"takes"}, key = TAKE_STATUS)

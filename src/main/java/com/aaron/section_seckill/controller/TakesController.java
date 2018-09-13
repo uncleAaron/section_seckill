@@ -71,22 +71,24 @@ public class TakesController {
 
     // 接收数组json类似["section1", "section2"]
     @PostMapping(value = "/take", produces = "application/json")
-    public void contextLoads(@RequestBody List<String> secids, HttpSession session) {
+    public ResultVO contextLoads(@RequestBody List<String> secids, HttpSession session) {
         String stuid = (String) session.getAttribute(SessionConstants.SESSION_KEY);
 //        secids.stream().forEach(System.out :: println);
         for (String secid : secids) {
-            mqProvider.sendTakeMessage(stuid, secid);
+            takeService.tryTake(secid, stuid);
         }
+        return ResultVO.success("请求已提交，请等待处理", "");
     }
 
     @GetMapping("/time")
-    public long getTime() {
-        return new Date().getTime() / 1000;
+    public ResultVO getTime() {
+        long time =  new Date().getTime() / 1000;
+        return ResultVO.success("成功", time);
     }
 
     @RabbitListener(queues = QueueConstants.TAKES_QUEUE)
     public void test(Takes takes) {
-        takeService.takeSection(takes);
+        takeService.takeSectionToDB(takes);
     }
 
 }

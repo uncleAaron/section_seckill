@@ -14,6 +14,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/test")
 public class TestController {
+
+//    @Autowired
+//    TakeService takeService;
+//
+//    @GetMapping("/decr")
+//    public boolean decr(@RequestParam("sid") String sid) {
+//        boolean a = takeService.tryTake("section1", "123123");
+//        return a;
+//    }
+
 /*    @Autowired
     TakeService takeService;
     @Autowired
