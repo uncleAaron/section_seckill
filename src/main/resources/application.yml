@@ -1,0 +1,70 @@
+server:
+  port: 8090
+
+spring:
+  datasource:
+
+    username: *********
+    password: *********
+    url: jdbc:mysql://localhost:3306/grademanage-no-fk?useUnicode=true&characterEncoding=utf-8&useSSL=false
+#    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.mysql.jdbc.Driver
+    hikari:
+      maximum-pool-size: 100
+
+  rabbitmq:
+    addresses: ************
+    port: ********
+    username: *******
+    password: ****************
+    listener:
+      simple:
+        retry:
+          max-attempts: 3 # 最大重试次数
+          enabled: false # 取消消费者重试，若开启的话消费端异常会一直重复收到消息
+        default-requeue-rejected: true # 重试超过上述次数之后选择丢弃，设置为false的话要另写逻辑处理死亡消息
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    # Redis默认情况下有16个分片，这里配置具体使用的分片，默认是0
+    database: 1
+    # 连接超时时间（毫秒）
+    timeout: 10000ms
+    # springboot-redis默认使用lettuce作为Redis Server的连接客户端
+    # Jedis在实现上智联redis server，多线程下非线程安全，除非使用线程池，为每个Jedis实例增加物理连接
+    # lettuce基于Netty的连接实例，可以多线程并发访问，且线程安全
+#    lettuce:
+#      pool:
+#      # 连接池最大连接数（使用负值表示没有限制） 默认 8
+#        max-active: 8
+#        # 连接池最大阻塞等待时间（使用负值表示没有限制） 默认 -1
+#        max-wait: -1ms
+#        # 连接池中的最大空闲连接 默认 8
+#        max-idle: 8
+#        # 连接池中的最小空闲连接 默认 0
+#        min-idle: 0
+
+
+
+#mybatis
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+#    cache-enabled: false
+
+mybatis-plus:
+  mapper-locations:
+    - classpath:mapper/*.xml
+  type-aliases-package: com.ahut.entity
+  global-config:
+    logic-delete-value: 0
+    logic-not-delete-value: 1
+    sql-injector: com.baomidou.mybatisplus.mapper.LogicSqlInjector
+#
+## mybatis分页插件
+#pagehelper:
+##  reasonable: true
+##  support-methods-arguments: true
+##  params: count=countSql
+#  dialect: com.github.pagehelper.dialect.helper.MySqlDialect  # 原来写mysql会报空指针找不到dialect，后来阅读源码发现dialect都是一些类，于是导入了类路径
+
