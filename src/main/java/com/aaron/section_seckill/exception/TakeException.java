@@ -15,6 +15,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class TakeException extends RuntimeException {
+    public static int count = 0;
     private int code;
     private String msg;
     private String stuid;
@@ -25,6 +26,12 @@ public class TakeException extends RuntimeException {
         code = status.getCode();
         this.secid = secid;
         this.stuid = stuid;
+    }
+
+    public TakeException(StatusEnum fullFailed) {
+        count++;
+        this.msg = fullFailed.getMsg();
+        this.code = fullFailed.getCode();
     }
 
     @Override

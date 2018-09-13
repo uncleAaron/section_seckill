@@ -26,6 +26,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
 //        registry.addInterceptor(rateLimitInterceptor).addPathPatterns("/section/take");
-        registry.addInterceptor(takeInterceptor).addPathPatterns("/section/take**");  // 拦截选课请求
+//        registry.addInterceptor(takeInterceptor).addPathPatterns("/section/take**");  // 拦截选课请求
     }
 }

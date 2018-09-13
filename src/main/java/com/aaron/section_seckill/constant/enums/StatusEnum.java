@@ -12,7 +12,8 @@ import lombok.Getter;
  */
 @Getter
 public enum StatusEnum {
-    TAKE_FAILED(1, "选课失败");
+    TAKE_FAILED(1, "选课失败"),
+    FULL_FAILED(2, "拥堵");
 
     int code;
     String msg;

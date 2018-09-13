@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * <p>
@@ -97,50 +98,67 @@ public class TakeServiceImpl implements TakeService {
      * 4. 否则即余量<=0，直接拒绝
      * 超卖解决办法：1. 使用乐观锁，重试到成功为止 2. 使用队列，先往名为课程id的队列push所有的数量的库存，然后依次pop作为减库存，这样解决了原子操作的问题，但是会不会很臃肿？
      */
+    ReentrantLock lock = new ReentrantLock();
+
     @Override
-    public boolean tryTake(String sectionId, String username) {
-        // 获取余量
-        Integer lastNumber = (Integer) redisDao.GET(RedisConstants.SECTIONS_LIST, sectionId);
-        if (lastNumber == null) {
-            Section section = sectionMapper.selectById(sectionId);
-            if (section == null) {
-                return false;   // 不存在该课程，返回拒绝
-            } else {
-                redisDao.SET(RedisConstants.SECTIONS_LIST, sectionId, section.getNumber(), 10L, TimeUnit.MINUTES);  // 把课程更新上去
+    public boolean tryTake(String sectionId, String username) throws TakeException {
+//        lock.lock();
+        try {
+            // 获取余量
+            Integer lastNumber = (Integer) redisDao.GET(RedisConstants.SECTIONS_LIST, sectionId);
+            if (lastNumber == null) {
+                Section section = sectionMapper.selectById(sectionId);
+                if (section == null) {
+                    return false;   // 不存在该课程，返回拒绝
+                } else {
+                    redisDao.SET(RedisConstants.SECTIONS_LIST, sectionId, section.getNumber(), 10L, TimeUnit.MINUTES);  // 把课程更新上去
+                }
             }
-        }
-        // 检查用户是否已经秒杀过了
-        long a = redisDao.ZRANK(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username);
-        if (a >= 0) {
+            // 检查用户是否已经秒杀过了
+            long a = redisDao.ZRANK(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username);
+            if (a >= 0) {
+                return false;
+            }
+            // 减余量，必须要用户还没秒杀且大于0才能-1，这就涉及并发，>0检查和-1结合后必须设计成原子操作，在此使用分布式锁
+            boolean ok = seckillOnRedis(sectionId, username);
+            return ok;
+        } catch (TakeException ex) {
             return false;
-        }
-        // 减余量，必须要大于0才能-1，这就涉及并发，>0检查和-1结合后必须设计成原子操作，在此使用分布式锁
-        boolean dercOK = seckillOnRedis(sectionId);
-        if (!dercOK) {  // 失败
-            return false;
-        } else {
-            redisDao.ZADD(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username, 1L);
-            mqProvider.sendTakeMessage(username, sectionId);    // 发送选课消息到mq
-            return true;
+        } finally {
+//            lock.unlock();
         }
     }
 
-    private boolean seckillOnRedis(String sectionId) {
+    private boolean seckillOnRedis(String sectionId, String username) throws TakeException {
+        boolean dercOK = false;
         long time = System.currentTimeMillis() + 1000 * 10;  //超时时间：10秒，最好设为常量
         try {
             // 加锁
             boolean isLock = redisDao.lock(sectionId, String.valueOf(time));
-            if (!isLock) {
-                throw new RuntimeException("人太多了，换个姿势再试试~");
+            while (!isLock) {
+                throw new TakeException(StatusEnum.FULL_FAILED);
             }
-
-            // 查库存
-            Integer redisNumber = (Integer) redisDao.GET(RedisConstants.SECTIONS_LIST, sectionId);
-            if (redisNumber == null || redisNumber <= 0) {  // 没库存
+            // 检查用户是否已经秒杀过了
+            long a = redisDao.ZRANK(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username);
+            if (a >= 0) {
+                dercOK = false;
+            } else {
+                // 查库存
+                Integer redisNumber = (Integer) redisDao.GET(RedisConstants.SECTIONS_LIST, sectionId);
+                if (redisNumber == null || redisNumber <= 0) {  // 没库存
+                    dercOK = false;
+                } else {
+                    redisDao.DECR(RedisConstants.SECTIONS_LIST, sectionId);   // -1
+                    dercOK = true;
+                }
+            }
+            if (!dercOK) {  // 失败
                 return false;
+            } else {
+                redisDao.ZADD(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username, 1L);  // 记录重复选课数据
+                mqProvider.sendTakeMessage(username, sectionId);    // 发送选课消息到mq
+                return true;
             }
-            Long result = redisDao.DECR(RedisConstants.SECTIONS_LIST, sectionId);   // -1
-            return true;
         } finally {
             //解锁
             redisDao.unlock(sectionId, String.valueOf(time));

@@ -5,6 +5,7 @@ import com.aaron.section_seckill.constant.QueueConstants;
 import com.aaron.section_seckill.constant.SessionConstants;
 import com.aaron.section_seckill.entity.Section;
 import com.aaron.section_seckill.entity.Takes;
+import com.aaron.section_seckill.exception.TakeException;
 import com.aaron.section_seckill.service.SectionService;
 import com.aaron.section_seckill.service.TakeService;
 import com.aaron.section_seckill.utils.MQProvider;
@@ -64,10 +65,16 @@ public class TakesController {
         takeService.saveOrSetTakeStatus(!takeService.getTakeStatus());
     }
 
-//    @PostMapping("/takes")
-//    public void contextLoads(@RequestParam("stuid") String stuid, @RequestParam("secid") String secid) {
-//        mqProvider.sendTakeMessage(stuid, secid);
-//    }
+    @PostMapping("/takes")
+    public boolean contextLoads(@RequestParam("stuid") String stuid, @RequestParam("secid") String secid) {
+        try {
+            takeService.tryTake(secid, stuid);
+        } catch (TakeException ex) {
+            ex.printStackTrace();
+            throw ex;
+        }
+        return true;
+    }
 
     // 接收数组json类似["section1", "section2"]
     @PostMapping(value = "/take", produces = "application/json")
