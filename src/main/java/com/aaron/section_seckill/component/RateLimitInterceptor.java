@@ -32,10 +32,8 @@ public class RateLimitInterceptor extends HandlerInterceptorAdapter {
     RedisDao redisDao;
 
     /**
-     * 使用redis的过期时间来做访问限制，当用户第一次请求时，注册容量，以后每一次减容量都会刷新过期时间
-     * 这样做其实有个问题，时间片固定了，容量不能自行补充，用户必须等待30S后才能继续请求，这样做其实不好。
-     * 网上参照一个流量控制模型：令牌桶，可以尝试一下：https://blog.csdn.net/xlxxcc/article/details/52635592
-     * https://blog.csdn.net/dxh0823/article/details/80756293
+     * 使用redis的过期时间来做访问限制，当用户第一次请求时，注册容量，以后每一次减容量都会刷新过期时间，根据过期时间的距离来补充桶里的而令牌
+     * 结合redis的过期时间做的令牌桶
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -48,8 +46,13 @@ public class RateLimitInterceptor extends HandlerInterceptorAdapter {
             value = RATE_LIMIT;
             redisDao.SET(RedisConstants.RATE_LIMIT, userKey, value, RATE_EXPIRES, TimeUnit.SECONDS);
         } else if (value > 0) {
-            value -= 1;
-            redisDao.SET(RedisConstants.RATE_LIMIT, userKey, value, RATE_EXPIRES, TimeUnit.SECONDS);
+            Long expiretime = redisDao.getExpire(RedisConstants.RATE_LIMIT, userKey);
+            long token = (RATE_EXPIRES - expiretime)/RATE_LIMIT + value;
+            if (token > RATE_LIMIT) {
+                token = RATE_LIMIT;
+            }
+            token -= 1;
+            redisDao.SET(RedisConstants.RATE_LIMIT, userKey, token, RATE_EXPIRES, TimeUnit.SECONDS);
         } else {
             response.sendError(429, "Rate limit exceeded, wait for the next quarter minute");
             return false;
