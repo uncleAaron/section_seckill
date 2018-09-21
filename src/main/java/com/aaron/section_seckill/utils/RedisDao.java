@@ -119,6 +119,11 @@ public class RedisDao {
         }
     }
 
+    public long getExpire(String storePrefix, String key) {
+        String akey = storePrefix + ":" + key;
+        return redisTemplate.getExpire(akey);
+    }
+
     /*
     redis分布式锁使用的两个命令
     SETNX key value

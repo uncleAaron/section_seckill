@@ -3,6 +3,7 @@ package com.aaron.section_seckill.controller;
 import com.aaron.section_seckill.VO.ResultVO;
 import com.aaron.section_seckill.constant.SessionConstants;
 import com.aaron.section_seckill.service.AuthService;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +26,7 @@ public class AuthController {
     @Autowired
     AuthService authService;
 
+    @ApiOperation(value = "登陆")
     @PostMapping("/login")
     public ResultVO login(@RequestParam("username") String username, @RequestParam("password") String password, HttpSession session) {
         boolean ok = authService.checkStudentPassword(username, password);
@@ -34,6 +36,7 @@ public class AuthController {
         return ResultVO.success("登陆成功", "");
     }
 
+    @ApiOperation(value = "登出")
     @PostMapping("/logout")
     public ResultVO logout(HttpSession session) {
         String stuid = (String) session.getAttribute(SessionConstants.SESSION_KEY);
