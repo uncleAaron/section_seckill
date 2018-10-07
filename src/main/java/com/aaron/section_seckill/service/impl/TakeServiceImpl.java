@@ -46,6 +46,8 @@ public class TakeServiceImpl implements TakeService {
     @Autowired
     MQProvider mqProvider;
 
+    private ReentrantLock lock = new ReentrantLock();
+
     private static final String TAKE_STATUS = "'takesStatus'";
 
     /**
@@ -98,7 +100,7 @@ public class TakeServiceImpl implements TakeService {
      * 4. 否则即余量<=0，直接拒绝
      * 超卖解决办法：1. 使用乐观锁，重试到成功为止 2. 使用队列，先往名为课程id的队列push所有的数量的库存，然后依次pop作为减库存，这样解决了原子操作的问题，但是会不会很臃肿？
      */
-    ReentrantLock lock = new ReentrantLock();
+//    ReentrantLock lock = new ReentrantLock();
 
     @Override
     public boolean tryTake(String sectionId, String username) throws TakeException {
@@ -134,10 +136,11 @@ public class TakeServiceImpl implements TakeService {
         long time = System.currentTimeMillis() + 1000 * 10;  //超时时间：10秒，最好设为常量
         try {
             // 加锁
-            boolean isLock = redisDao.lock(sectionId, String.valueOf(time));
-            while (!isLock) {
-                throw new TakeException(StatusEnum.FULL_FAILED);
-            }
+            lock.lock();
+//            boolean isLock = redisDao.lock(sectionId, String.valueOf(time));
+//            while (!isLock) {
+//                throw new TakeException(StatusEnum.FULL_FAILED);
+//            }
             // 检查用户是否已经秒杀过了
             long a = redisDao.ZRANK(RedisConstants.SECTIONS_LIST + ":" + sectionId + ":zset", username);
             if (a >= 0) {
@@ -161,7 +164,8 @@ public class TakeServiceImpl implements TakeService {
             }
         } finally {
             //解锁
-            redisDao.unlock(sectionId, String.valueOf(time));
+//            redisDao.unlock(sectionId, String.valueOf(time));
+            lock.unlock();
         }
     }
 
